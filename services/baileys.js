@@ -110,7 +110,54 @@ class WhatsAppService {
 
       this.sock.ev.on('messages.upsert', async (m) => {
         if (m.type === 'notify') {
-          await Promise.all(m.messages.map((msg) => WhatsAppService.sendToWebhook(msg)));
+          try {
+            await Promise.all(m.messages.map(async (msg) => {
+              // Debug log for raw message
+              logger.debug({
+                msg: 'Raw message received',
+                data: msg,
+              });
+
+              // Extract relevant message information
+              const messageInfo = {
+                id: msg.key.id,
+                from: msg.key.remoteJid,
+                fromMe: msg.key.fromMe,
+                timestamp: msg.messageTimestamp,
+                type: Object.keys(msg.message || {})[0],
+                pushName: msg.pushName,
+                content: WhatsAppService.extractMessageContent(msg),
+                isGroup: msg.key.remoteJid?.endsWith('@g.us') || false,
+              };
+
+              // Debug log for processed message
+              logger.debug({
+                msg: 'Processed message info',
+                data: messageInfo,
+              });
+
+              // Send to webhook
+              await WhatsAppService.notifyWebhook('message.received', messageInfo);
+              logger.info({
+                msg: 'New message processed',
+                messageId: messageInfo.id,
+                from: messageInfo.from,
+                type: messageInfo.type,
+                content: messageInfo.content,
+                isGroup: messageInfo.isGroup,
+                timestamp: new Date(messageInfo.timestamp * 1000).toISOString(),
+              });
+            }));
+          } catch (error) {
+            errorLogger.error({
+              msg: 'Error processing incoming message',
+              error: error.message,
+            });
+            await WhatsAppService.notifyWebhook('error', {
+              type: 'message_processing_error',
+              error: error.message,
+            });
+          }
         }
       });
 
@@ -213,51 +260,44 @@ class WhatsAppService {
 
   static async notifyWebhook(event, data) {
     const webhookUrl = process.env.WEBHOOK_URL;
-    if (!webhookUrl) return;
+    if (!webhookUrl) {
+      logger.warn({
+        msg: 'Webhook URL not configured, skipping notification',
+      });
+      return;
+    }
 
     try {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': 'Baileys-API-Webhook',
+          'X-Event-Type': event,
         },
         body: JSON.stringify({
           event,
           timestamp: new Date().toISOString(),
-          ...data,
+          data,
         }),
       });
 
       if (!response.ok) {
-        errorLogger.error('Failed to send webhook:', response.statusText);
+        throw new Error(`Webhook request failed with status ${response.status}: ${response.statusText}`);
       }
-    } catch (error) {
-      errorLogger.error('Error during webhook notification:', error);
-    }
-  }
 
-  static async sendToWebhook(message) {
-    const webhookUrl = process.env.WEBHOOK_URL;
-    if (!webhookUrl) return;
-
-    try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          event: 'message',
-          timestamp: new Date().toISOString(),
-          data: message,
-        }),
+      logger.debug({
+        msg: 'Webhook notification sent successfully',
+        event,
+        status: response.status,
       });
-
-      if (!response.ok) {
-        errorLogger.error('Failed to send webhook:', response.statusText);
-      }
     } catch (error) {
-      errorLogger.error('Error during webhook notification:', error);
+      errorLogger.error({
+        msg: 'Error during webhook notification',
+        event,
+        error: error.message,
+        data: JSON.stringify(data),
+      });
     }
   }
 
@@ -280,6 +320,82 @@ class WhatsAppService {
     } catch (error) {
       errorLogger.error('Failed to send message:', error);
       throw error;
+    }
+  }
+
+  // Change to static method
+  static extractMessageContent(msg) {
+    if (!msg.message) return null;
+
+    // Get the first message type (text, image, video, etc.)
+    const messageType = Object.keys(msg.message)[0];
+    const messageContent = msg.message[messageType];
+
+    switch (messageType) {
+      case 'conversation':
+        return { type: 'text', text: messageContent };
+
+      case 'extendedTextMessage':
+        return {
+          type: 'text',
+          text: messageContent.text,
+          contextInfo: messageContent.contextInfo,
+        };
+
+      case 'imageMessage':
+        return {
+          type: 'image',
+          caption: messageContent.caption,
+          mimetype: messageContent.mimetype,
+        };
+
+      case 'videoMessage':
+        return {
+          type: 'video',
+          caption: messageContent.caption,
+          mimetype: messageContent.mimetype,
+        };
+
+      case 'audioMessage':
+        return {
+          type: 'audio',
+          mimetype: messageContent.mimetype,
+          seconds: messageContent.seconds,
+        };
+
+      case 'documentMessage':
+        return {
+          type: 'document',
+          fileName: messageContent.fileName,
+          mimetype: messageContent.mimetype,
+        };
+
+      case 'stickerMessage':
+        return {
+          type: 'sticker',
+          mimetype: messageContent.mimetype,
+        };
+
+      case 'locationMessage':
+        return {
+          type: 'location',
+          degreesLatitude: messageContent.degreesLatitude,
+          degreesLongitude: messageContent.degreesLongitude,
+          name: messageContent.name,
+        };
+
+      case 'contactMessage':
+        return {
+          type: 'contact',
+          displayName: messageContent.displayName,
+          vcard: messageContent.vcard,
+        };
+
+      default:
+        return {
+          type: messageType,
+          content: 'Message type not specifically handled',
+        };
     }
   }
 }
