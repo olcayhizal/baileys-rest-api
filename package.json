@@ -7,10 +7,19 @@
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
-  "keywords": ["whatsapp", "rest", "api", "baileys", "nodejs", "express"],
+  "keywords": [
+    "whatsapp",
+    "rest",
+    "api",
+    "baileys",
+    "nodejs",
+    "express"
+  ],
   "author": "Muzaffer Kadir YILMAZ",
   "license": "MIT",
   "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.16",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
