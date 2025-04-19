@@ -27,6 +27,7 @@
     "joi": "^17.12.3",
     "pino": "^8.20.0",
     "pino-pretty": "^11.0.0",
+    "qrcode": "^1.5.4",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

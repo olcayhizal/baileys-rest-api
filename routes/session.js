@@ -1,46 +1,73 @@
 require('dotenv').config();
 const express = require('express');
+const QRCode = require('qrcode');
 
 const router = express.Router();
 const verifyToken = require('../middlewares/verifyToken');
 const WhatsAppService = require('../services/baileys');
 
-// Session başlatma
+async function generateQRBase64(text) {
+  try {
+    return await QRCode.toDataURL(text, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      width: 256,
+      margin: 1,
+    });
+  } catch (error) {
+    throw new Error(`QR Code Generation Error: ${error.message}`);
+  }
+}
+
 router.post('/start', verifyToken, async (req, res) => {
   try {
-    const qr = await WhatsAppService.initialize();
+    const result = await WhatsAppService.initialize();
 
-    if (qr) {
-      res.sendResponse(200, {
-        status: 'waiting_qr',
-        qr,
-      });
-    } else {
-      res.sendResponse(200, {
-        status: 'connected',
-        message: 'WhatsApp oturumu başarıyla başlatıldı',
-      });
+    if (!result.success) {
+      res.sendError(500, result);
+      return;
     }
+
+    if (result.status === 'waiting_qr') {
+      const qrBase64 = await generateQRBase64(result.qr);
+      res.sendResponse(200, {
+        ...result,
+        qrBase64,
+      });
+      return;
+    }
+
+    res.sendResponse(200, result);
   } catch (error) {
     res.sendError(500, error);
   }
 });
 
-// Session durumu ve QR kodu
-router.get('/status', verifyToken, (req, res) => {
+router.get('/status', verifyToken, async (req, res) => {
   try {
     const status = WhatsAppService.getConnectionStatus();
-    res.sendResponse(200, status);
+
+    if (status.qr) {
+      status.qrBase64 = await generateQRBase64(status.qr);
+    }
+
+    res.sendResponse(200, {
+      success: true,
+      ...status,
+    });
   } catch (error) {
     res.sendError(500, error);
   }
 });
 
-// Session sonlandırma
 router.post('/logout', verifyToken, async (req, res) => {
   try {
-    await WhatsAppService.logout();
-    res.sendResponse(200, { message: 'WhatsApp oturumu sonlandırıldı' });
+    const result = await WhatsAppService.logout();
+    if (result.success) {
+      res.sendResponse(200, result);
+    } else {
+      res.sendError(400, result);
+    }
   } catch (error) {
     res.sendError(500, error);
   }
