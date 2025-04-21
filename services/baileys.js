@@ -84,7 +84,9 @@ class WhatsAppService {
         if (connection === 'close') {
           // If already connected and trying to reconnect, cancel the operation
           if (this.isConnected && isReconnecting) {
-            logger.info('Connection already active, reconnection cancelled');
+            logger.info({
+              msg: 'Connection already active, reconnection cancelled',
+            });
             return;
           }
 
@@ -94,14 +96,18 @@ class WhatsAppService {
           if (shouldReconnect && !this.isConnected) {
             await this.initialize(true);
           } else if (!shouldReconnect) {
-            logger.info('Session terminated');
+            logger.info({
+              msg: 'Session terminated',
+            });
             await this.handleLogout('connection_closed');
           }
         } else if (connection === 'open') {
           this.isConnected = true;
           this.qr = null;
           this.resetReconnectAttempts();
-          logger.info('WhatsApp connection successful!');
+          logger.info({
+            msg: 'WhatsApp connection successful!',
+          });
           await WhatsAppService.notifyWebhook('connection', { status: 'connected' });
         }
       });
@@ -190,7 +196,10 @@ class WhatsAppService {
         message: 'Failed to get QR code or establish connection',
       };
     } catch (error) {
-      errorLogger.error('Failed to initialize WhatsApp connection:', error);
+      errorLogger.error({
+        msg: 'Error during WhatsApp connection initialization',
+        error: error?.message || error,
+      });
       await WhatsAppService.notifyWebhook('error', { error: error.message });
       return {
         success: false,
@@ -226,7 +235,10 @@ class WhatsAppService {
         reason,
       };
     } catch (error) {
-      errorLogger.error('Error during session cleanup:', error);
+      errorLogger.error({
+        msg: 'Error during session cleanup',
+        error: error?.message || error,
+      });
       return {
         success: false,
         status: 'error',
@@ -248,7 +260,10 @@ class WhatsAppService {
         message: 'No active session found',
       };
     } catch (error) {
-      errorLogger.error('Error during logout:', error);
+      errorLogger.error({
+        msg: 'Error during logout',
+        error: error?.message || error,
+      });
       return {
         success: false,
         status: 'error',
@@ -315,10 +330,17 @@ class WhatsAppService {
 
     try {
       const result = await this.sock.sendMessage(to, { text: message });
-      logger.info('Message sent:', { to, messageId: result.key.id });
+      logger.info({
+        msg: 'Message sent',
+        to,
+        messageId: result.key.id,
+      });
       return result;
     } catch (error) {
-      errorLogger.error('Failed to send message:', error);
+      errorLogger.error({
+        msg: 'Failed to send message',
+        error: error.message,
+      });
       throw error;
     }
   }
