@@ -5,7 +5,17 @@ const router = express.Router();
 const verifyToken = require('../middlewares/verifyToken');
 const validator = require('../middlewares/validator');
 const WhatsAppService = require('../services/baileys');
-const { sendText } = require('../validators/message');
+const { sendText, checkNumber } = require('../validators/message');
+
+router.post('/check-number', verifyToken, validator(checkNumber), async (req, res) => {
+  try {
+    const { to } = req.body;
+    const result = await WhatsAppService.checkNumber(to);
+    res.sendResponse(200, result);
+  } catch (error) {
+    res.sendError(500, error);
+  }
+});
 
 router.post('/send-text', verifyToken, validator(sendText), async (req, res) => {
   try {

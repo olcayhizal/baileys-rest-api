@@ -27,7 +27,7 @@ class WhatsAppService {
       // Function to cleanup event handlers
       const cleanup = () => {
         if (timeoutId) clearTimeout(timeoutId);
-        if (this.connectionUpdateHandler) {
+        if (this.connectionUpdateHandler && this.sock?.ev) {
           this.sock.ev.off('connection.update', this.connectionUpdateHandler);
           this.connectionUpdateHandler = null;
         }
@@ -39,30 +39,50 @@ class WhatsAppService {
         resolve(null);
       }, timeout);
 
-      this.connectionUpdateHandler = (update) => {
-        const { connection, qr } = update;
+      if (this.sock) {
+        this.connectionUpdateHandler = (update) => {
+          const { connection, qr } = update;
 
-        if (qr) {
-          cleanup();
-          this.qr = qr;
-          resolve(qr);
-        } else if (connection === 'open') {
-          cleanup();
-          resolve(null);
-        }
-      };
+          if (qr) {
+            cleanup();
+            this.qr = qr;
+            resolve(qr);
+          } else if (connection === 'open') {
+            cleanup();
+            resolve(null);
+          }
+        };
 
-      this.sock.ev.on('connection.update', this.connectionUpdateHandler);
+        this.sock.ev.on('connection.update', this.connectionUpdateHandler);
+      } else {
+        cleanup();
+        resolve(null);
+      }
     });
   }
 
   async initialize(isReconnecting = false) {
     try {
+      // Check if session directory exists
+      try {
+        await fs.access(this.sessionPath);
+      } catch (error) {
+        if (isReconnecting) {
+          logger.warn('No session found, cannot reconnect');
+          return {
+            success: false,
+            status: 'error',
+            message: 'No session found, cannot reconnect',
+          };
+        }
+      }
+
       if (isReconnecting) {
         this.reconnectAttempts += 1;
         if (this.reconnectAttempts > this.MAX_RECONNECT_ATTEMPTS) {
           logger.warn(`Maximum reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) exceeded`);
-          return await this.handleLogout('max_attempts_exceeded');
+          await this.handleLogout('max_attempts_exceeded');
+          return await this.initialize(false);
         }
         logger.info(`Attempting to reconnect... (Attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
       } else {
@@ -100,6 +120,7 @@ class WhatsAppService {
               msg: 'Session terminated',
             });
             await this.handleLogout('connection_closed');
+            await this.initialize(false);
           }
         } else if (connection === 'open') {
           this.isConnected = true;
@@ -339,6 +360,47 @@ class WhatsAppService {
     } catch (error) {
       errorLogger.error({
         msg: 'Failed to send message',
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async checkNumber(phoneNumber) {
+    if (!this.isConnected) {
+      throw new Error('WhatsApp connection is not active');
+    }
+
+    try {
+      // Check if the number exists on WhatsApp
+      const [result] = await this.sock.onWhatsApp(phoneNumber.replace(/[^\d]/g, ''));
+
+      if (result) {
+        logger.info({
+          msg: 'Phone number check completed',
+          phoneNumber,
+          exists: true,
+          jid: result.jid,
+        });
+        return {
+          exists: true,
+          jid: result.jid,
+        };
+      }
+
+      logger.info({
+        msg: 'Phone number check completed',
+        phoneNumber,
+        exists: false,
+      });
+      return {
+        exists: false,
+        jid: null,
+      };
+    } catch (error) {
+      errorLogger.error({
+        msg: 'Failed to check phone number',
+        phoneNumber,
         error: error.message,
       });
       throw error;

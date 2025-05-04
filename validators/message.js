@@ -5,6 +5,11 @@ const sendText = Joi.object({
   message: Joi.string().required(),
 });
 
+const checkNumber = Joi.object({
+  to: Joi.string().required(),
+});
+
 module.exports = {
   sendText,
+  checkNumber,
 };
