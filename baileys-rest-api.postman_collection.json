@@ -1,0 +1,163 @@
+{
+	"info": {
+		"_postman_id": "22e7f90e-cf0e-42c3-a8e9-688befe6f760",
+		"name": "baileys-rest-api",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "13600079",
+		"_collection_link": "https://banausta.postman.co/workspace/Banausta~e5b34a2e-1e8f-4f56-9f0b-4bc0a869ccd0/collection/13600079-22e7f90e-cf0e-42c3-a8e9-688befe6f760?action=share&source=collection_link&creator=13600079"
+	},
+	"item": [
+		{
+			"name": "Start Session",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/session/start",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"session",
+						"start"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Send Text Message",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"to\":\"905312345678@s.whatsapp.net\",\n    \"message\":\"test\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/message/send-text",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"message",
+						"send-text"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check Whatsapp Number Exist",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"to\":\"905312345678@s.whatsapp.net\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/message/check-number",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"message",
+						"check-number"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Session Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/session/status",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"session",
+						"status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Logout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/session/logout",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"session",
+						"logout"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "key",
+				"value": "x-access-token",
+				"type": "string"
+			},
+			{
+				"key": "value",
+				"value": "your-access-token-secret",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "0.0.0.0:3000",
+			"type": "string"
+		}
+	]
+}
